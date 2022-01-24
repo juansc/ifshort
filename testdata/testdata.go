@@ -157,6 +157,15 @@ func notUsed_IfStmt_Body_OK() {
 	}
 }
 
+func varUsedInSliceIndex_OK() {
+	index := getInt()
+	if index == 0 {
+		noOp1(index)
+	}
+	mySlice := []int{0}
+	noOp1(mySlice[getInt(index)])
+}
+
 func notUsed_IfStmt_AssignInLeftHandSide_OK() {
 	a := 0
 
@@ -612,4 +621,16 @@ func notUsed_Also_Used_In_Else_Body_OK() {
 	} else {
 		noOp1(x)
 	}
+}
+
+func varUsedInTwoIfStmts_OK() {
+	hasFlag := getBool()
+	if hasFlag {
+		noOp1()
+	}
+	a := 0
+	if hasFlag {
+		noOp2()
+	}
+	noOp1(a)
 }
