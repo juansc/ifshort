@@ -2,7 +2,6 @@ package analyzer_test
 
 import (
 	"go/ast"
-	"go/token"
 	"os"
 	"path/filepath"
 	"testing"
@@ -54,7 +53,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 func process(pass *analysis.Pass, node *ast.FuncDecl) {
-	varNameToRefs := map[string][]token.Pos{}
+	varNameToRefs := map[string][]*ast.Ident{}
 
 	var ifs []*ast.IfStmt
 	updateVarRefs(varNameToRefs, &ifs, node)
@@ -67,7 +66,7 @@ func process(pass *analysis.Pass, node *ast.FuncDecl) {
 	}
 }
 
-func checkCondition(ifStmt *ast.IfStmt, node ast.Node, varNameToRefs map[string][]token.Pos) *ast.Ident {
+func checkCondition(ifStmt *ast.IfStmt, node ast.Node, varNameToRefs map[string][]*ast.Ident) *ast.Ident {
 	switch n := node.(type) {
 	case *ast.Ident:
 		refs, ok := varNameToRefs[n.Name]
@@ -77,16 +76,16 @@ func checkCondition(ifStmt *ast.IfStmt, node ast.Node, varNameToRefs map[string]
 		}
 		beforeCount := 0
 		for _, ref := range refs {
-			if ref < ifStmt.Pos() {
+			if ref.Pos() < ifStmt.Pos() {
 				beforeCount++
-			} else if ref > ifStmt.End() {
+			} else if ref.Pos() > ifStmt.End() {
 				// Variable is referenced outside of if statement.
 				return nil
 			}
 		}
 		// Only one reference before condition: the initial assignment of the variable.
 		if beforeCount == 1 {
-			return n
+			return refs[0]
 		}
 		return nil
 	case *ast.BinaryExpr:
@@ -94,14 +93,20 @@ func checkCondition(ifStmt *ast.IfStmt, node ast.Node, varNameToRefs map[string]
 			return res
 		}
 		return checkCondition(ifStmt, n.Y, varNameToRefs)
+	case *ast.CallExpr:
+		for _, arg := range n.Args {
+			if res := checkCondition(ifStmt, arg, varNameToRefs); res != nil {
+				return res
+			}
+		}
 	}
 	return nil
 }
 
-func updateVarRefs(m map[string][]token.Pos, ifs *[]*ast.IfStmt, node ast.Node) {
+func updateVarRefs(m map[string][]*ast.Ident, ifs *[]*ast.IfStmt, node ast.Node) {
 	switch v := node.(type) {
 	case *ast.Ident:
-		m[v.Name] = append(m[v.Name], v.Pos())
+		m[v.Name] = append(m[v.Name], v)
 	case *ast.FuncDecl:
 		updateVarRefs(m, ifs, v.Body)
 	case *ast.AssignStmt:
