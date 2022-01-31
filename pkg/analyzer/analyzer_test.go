@@ -1,12 +1,10 @@
 package analyzer_test
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"os"
 	"path/filepath"
-	//"path/filepath"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
@@ -21,11 +19,12 @@ func TestAll(t *testing.T) {
 		t.Fatalf("Failed to get wd: %s", err)
 	}
 
-	testdata := filepath.Dir(filepath.Dir(wd)) + "/testdata/test"
-	analysistest.Run(t, testdata, Analyzer)
+	//testdata := filepath.Dir(filepath.Dir(wd)) + "/testdata/test"
 
-	//testdata := filepath.Join(filepath.Dir(filepath.Dir(wd)), "testdata")
+	testdata := filepath.Join(filepath.Dir(filepath.Dir(wd)), "testdata")
 	//analysistest.Run(t, testdata, analyzer.Analyzer)
+
+	analysistest.Run(t, testdata, Analyzer)
 }
 
 var Analyzer = &analysis.Analyzer{
@@ -41,27 +40,31 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.FuncDecl)(nil),
 	}
 
-	varNameToRefs := map[string][]token.Pos{}
-
-	var ifs []*ast.IfStmt
 	insp.Preorder(nodeFilter, func(node ast.Node) {
 		v, ok := node.(*ast.FuncDecl)
 		if !ok {
 			return
 		}
-		updateVarRefs(varNameToRefs, &ifs, v)
+
+		process(pass, v)
 	})
 
+
+	return nil, nil
+}
+
+func process(pass *analysis.Pass, node *ast.FuncDecl) {
+	varNameToRefs := map[string][]token.Pos{}
+
+	var ifs []*ast.IfStmt
+	updateVarRefs(varNameToRefs, &ifs, node)
 	for _, ifStmt := range ifs {
 		candidate := checkCondition(ifStmt, ifStmt.Cond, varNameToRefs)
 		if candidate != nil {
-			position := pass.Fset.Position(candidate.Pos())
-			fmt.Printf("Consider \"%s\" at %s:%d:%d\n", candidate.Name, position.Filename, position.Line, position.Offset)
+			position := pass.Fset.Position(ifStmt.Pos())
+			pass.Reportf(candidate.Pos(), "variable '%s' is only used in the if-statement (%s); consider using short syntax", candidate.Name, position)
 		}
-
 	}
-
-	return nil, nil
 }
 
 func checkCondition(ifStmt *ast.IfStmt, node ast.Node, varNameToRefs map[string][]token.Pos) *ast.Ident {
