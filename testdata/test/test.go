@@ -7,6 +7,27 @@ func thing() string {
 	if a != "" {
 		a = "hey"
 		fmt.Println(a)
+		fmt.Println(a)
+	}
+
+	f := "hi"
+	if true {
+		fmt.Println(f)
+	}
+
+	g := "hi"
+	if returnBool() {
+		fmt.Println(g)
+	}
+
+	e := "hi there"
+
+	if true {
+		fmt.Println("haha") // Scope B
+		if e == "hi" {      // Scope A
+			fmt.Println("haha") // Scope B
+		}
+		fmt.Println(e) // Scope A
 	}
 
 	d := "foo"
@@ -14,21 +35,18 @@ func thing() string {
 		fmt.Println(d)
 	}
 
-	e := "hi there"
-	if true {
-		if e == "hi" {
-			fmt.Println("haha")
-		}
-	}
-
-	b := a
+	//b := a
 	c := "hi"
 	// Even though "c" is only referenced before the last if statement,
 	// it shouldn't count since it's referenced several times.
 	fmt.Println(c)
-	if b != "" && c != "" {
-		fmt.Println(b + c + d)
+	if c != "" {
+		fmt.Println(c + d)
 	}
 
-	return a + "hi"
+	return a
+}
+
+func returnBool() bool {
+	return true
 }
